@@ -103,7 +103,7 @@ class LocationViewModel(
              viewModelScope.launch {
                  val result = RetrofitClient.create().getAddressFromCoordinates(
                      latlng,
-                     "AIzaSyAOUa2-cJakHWxw1-OvrAIVlipze_TpmCA"
+                     "your api needed"
                  )
                  println(result)
                  _address.value = result.results  // result is of type geocodingResult and it contains list of geocoding result

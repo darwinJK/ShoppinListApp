@@ -240,7 +240,8 @@ fun ShoppingList(
                 Column {
                     //the given text that we provide in side the textfield is declared to 'it'
                     OutlinedTextField(value = viewModel.shoppingItemName, onValueChange ={
-                        viewModel.shoppingItemName=it }, singleLine = true,
+                        viewModel.shoppingItemName=it },label={ Text(text = "Item Name")},
+                        singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp))
@@ -248,9 +249,9 @@ fun ShoppingList(
 
                     OutlinedTextField(value = viewModel.shoppingItemQuantity, onValueChange ={
 
-                            viewModel.shoppingItemQuantity=it
-
-                        }, singleLine = true,
+                            viewModel.shoppingItemQuantity=it},
+                        label={ Text(text = "Item qty")},
+                        singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp))
@@ -297,6 +298,7 @@ fun shoppingItemEditor(item : ShoppingItem , onEditComplete : (String, Int) -> U
         Column {
             //field for editing item name
             BasicTextField(value = editedName.trim(), onValueChange = {editedName =it},
+                
                 singleLine = true,
                 modifier = Modifier
                     .wrapContentSize()
