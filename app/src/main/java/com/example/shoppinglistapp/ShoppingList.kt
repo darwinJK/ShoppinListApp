@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,23 +55,31 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.util.Locale
 import androidx.compose.material3.AlertDialog as AlertDialog1
 
 
-data class ShoppingItem(var id:Int,
-                        var name : String,
-                        var Quantity: Int,
-                        var isEditing : Boolean=false,
-                        var address:String=""
-
-
-                    )
+@Entity(tableName = "Shopping-table")
+data class ShoppingItem(
+    @PrimaryKey(autoGenerate = true)
+    val id:Long,
+    @ColumnInfo(name = "wish-name")
+    var name: String,
+    @ColumnInfo(name = "wish-qty")
+    var quantity: Int,
+    var isEditing: Boolean = false,
+    @ColumnInfo(name ="wish-address")
+    var address: String = ""
+)
 
 
 
 @Composable
 fun ShoppingList(
+    id:Long,
     loUtilscation: LoUtilscation,
     viewModel: LocationViewModel,
     navController: NavController,
@@ -81,10 +90,9 @@ fun ShoppingList(
 ){
 
     //sItem contains of list in shoppingItem(data class)
-    var sItems by remember { mutableStateOf(listOf<ShoppingItem>()) }
+
     var showDialog by remember { mutableStateOf(false) }
-    var itemname by remember { mutableStateOf("") }
-    var itemQty by remember { mutableStateOf("") }
+
 
 
 
@@ -133,11 +141,14 @@ fun ShoppingList(
         verticalArrangement = Arrangement.Center) {
 
         //button to add item
-        Button(onClick = { showDialog=true },
+        Button(onClick = { showDialog=true
+                         viewModel.shoppingItemName=""
+                         viewModel.shoppingItemQuantity=""},
             modifier= Modifier.align(Alignment.CenterHorizontally)) {
             Text(text = "Add Item")
 
         }
+        val shoppingList by viewModel.getAllShoppingItem.collectAsState(initial = listOf())
 
         //lazycolumn allows to display long list without overwhlemed the system.
         LazyColumn(
@@ -147,7 +158,7 @@ fun ShoppingList(
         ){
             //items used for multiple elements we have to
 
-            items(sItems){
+            items(shoppingList){
                 item->
 
                 //the editing item is true on the current item.
@@ -157,15 +168,14 @@ fun ShoppingList(
                         editedName, editedQty ->
                         //map{} is used for iterate through the list.
                         //copy() : coping the content without affecting the orgnial list
-                        sItems= sItems.map{it.copy(isEditing = false)}
-                        val editedItem = sItems.find{it.id==item.id}
-                        editedItem?.let {
-                            it.name=editedName
-                            it.Quantity=editedQty
-                            it.address = address
 
-
-                         }
+                        val editedItem = item.copy(name = editedName, quantity = editedQty, isEditing = false)
+                        viewModel.updateItem(editedItem)
+                    //    editedItem?.let {
+                      //      it.name=editedName
+                        //    it.quantity=editedQty
+                          //  it.address = address
+                         //}
                     } )
                 }
                 else{
@@ -173,9 +183,16 @@ fun ShoppingList(
                         //finding out which item we are editing and end changing is " isediting "boolean to true
                         //function on editing the item from the list.
                         onEditClick = {
-                        sItems=sItems.map { it.copy(isEditing = it.id==item.id) }},
+                            val updatedItem = item.copy(isEditing = true)
+                            viewModel.updateItem(updatedItem)
+                       // sItems=sItems.map { it.copy(isEditing = it.id==item.id) }
+                                      },
                         //function of deletiing item
-                        OnDeleteClick = {sItems =sItems-item })
+                        OnDeleteClick = {
+                        viewModel.deleteItem(item)}
+
+
+                    )
                 }
             }
         }
@@ -194,18 +211,14 @@ fun ShoppingList(
                                 //button for add the entered item.
                                 Button(onClick = {
                                     //check for any blank column
-                                    if(itemname.isNotBlank()){
-                                        val newItem=ShoppingItem(
-                                            id = sItems.size+1,
-                                            name=itemname,
-                                            Quantity = itemQty.toInt(),
-                                            address = address
-
-                                        )
-                                        sItems=sItems+newItem
+                                    if(viewModel.shoppingItemName.isNotEmpty()){
                                         showDialog=false
-                                        itemname = ""
-                                        itemQty = ""
+                                        viewModel.addItem(ShoppingItem(
+                                            id = id,
+                                            name = viewModel.shoppingItemName,
+                                            quantity = viewModel.shoppingItemQuantity.toIntOrNull()?:1,
+                                            address=address
+                                        ))
                                     }
 
                                 }) {
@@ -226,15 +239,18 @@ fun ShoppingList(
                 //column for the user to add item and its quantity.
                 Column {
                     //the given text that we provide in side the textfield is declared to 'it'
-                    OutlinedTextField(value = itemname, onValueChange ={
-                        itemname=it }, singleLine = true,
+                    OutlinedTextField(value = viewModel.shoppingItemName, onValueChange ={
+                        viewModel.shoppingItemName=it }, singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp))
 
 
-                    OutlinedTextField(value = itemQty, onValueChange ={
-                        itemQty=it }, singleLine = true,
+                    OutlinedTextField(value = viewModel.shoppingItemQuantity, onValueChange ={
+
+                            viewModel.shoppingItemQuantity=it
+
+                        }, singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp))
@@ -267,8 +283,7 @@ fun ShoppingList(
 //The function for the working of edit icon.
 fun shoppingItemEditor(item : ShoppingItem , onEditComplete : (String, Int) -> Unit){
     var editedName by remember{ mutableStateOf(item.name) }
-    var editedQty by remember{ mutableStateOf(item.Quantity.toString()) }
-    var isEditing by remember{ mutableStateOf(item.isEditing) }
+    var editedQty by remember{ mutableStateOf(item.quantity.toString()) }
 
     //creating row at the position of the edited item
     Row(modifier = Modifier
@@ -281,23 +296,27 @@ fun shoppingItemEditor(item : ShoppingItem , onEditComplete : (String, Int) -> U
         //column inside the row to edit the item name and quantity.
         Column {
             //field for editing item name
-            BasicTextField(value = editedName, onValueChange = {editedName =it},
+            BasicTextField(value = editedName.trim(), onValueChange = {editedName =it},
                 singleLine = true,
                 modifier = Modifier
                     .wrapContentSize()
                     .padding(8.dp))
             //field for editing quantity
-            BasicTextField(value = editedQty, onValueChange = {editedQty =it},
+            BasicTextField(value = editedQty.trim(), onValueChange = {
+                    editedQty=it
+                },
                 singleLine = true,
                 modifier = Modifier
                     .wrapContentSize()
                     .padding(8.dp))
         }
         //button outside the column used to save the edited details.
-        Button(onClick = {
-            isEditing=false
-            onEditComplete(editedName, editedQty.toIntOrNull() ?: 1)
-        }) {
+        Button(
+            onClick = {
+
+                onEditComplete(editedName, editedQty.toIntOrNull()?:1)
+            }
+        ){
             Text("Save")
         }
     }
@@ -322,6 +341,8 @@ fun shoppingListItem(item: ShoppingItem,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
 
+
+
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -329,9 +350,18 @@ fun shoppingListItem(item: ShoppingItem,
         ) {
             Row {
 
+
+
+
                 Text(text = item.name, modifier = Modifier.padding(8.dp))
 
-                Text(text = "Qty : ${item.Quantity}", modifier = Modifier.padding(8.dp))
+                if(item.quantity >= 1){
+                    Text(text = "Qty : ${item.quantity}", modifier = Modifier.padding(8.dp))
+                }else{
+                    Text(text = "Qty : 1", modifier = Modifier.padding(8.dp))
+                }
+
+
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {

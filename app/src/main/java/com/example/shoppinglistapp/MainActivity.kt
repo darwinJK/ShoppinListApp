@@ -49,6 +49,7 @@ fun navigation(){
     NavHost(navController, startDestination = "shoppingListScreen"){
         composable("shoppingListScreen"){
             ShoppingList(
+                id=0L,
                 loUtilscation = loUtilscation,
                 viewModel = viewModel ,
                 navController = navController,
@@ -64,7 +65,7 @@ fun navigation(){
             viewModel.location.value?.let { it1->
                 locationSelectionScreen(location = it1, onLocationSelected = {locationData->
                     println("locationmainlat : ${locationData.latitude} locationmainlng : ${locationData.longitude}")
-                  viewModel.fetchAddress(context,
+                  viewModel.fetchAddress("${locationData.latitude}, ${locationData.longitude}",context,
                       LocationData(locationData.latitude,locationData.longitude)
                   ) //it is location data.
 
